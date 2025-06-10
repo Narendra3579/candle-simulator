@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Candle Simulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the canvas and layout */
+        body {
+            font-family: "Inter", sans-serif;
+            transition: background-color 0.3s ease; /* Smooth transition for theme change */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 1rem;
+        }
+        .container {
+            border-radius: 1rem; /* Rounded corners for the main container */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            max-width: 900px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease; /* Smooth transition for theme change */
+        }
+        canvas {
+            display: block;
+            border: 1px solid; /* Border color will be theme-dependent */
+            border-radius: 0.75rem; /* Rounded corners for canvas */
+            cursor: crosshair; /* Indicate interactivity */
+            transition: background-color 0.3s ease, border-color 0.3s ease; /* Smooth transition for theme change */
+        }
+        .button-glow {
+            transition: all 0.2s ease-in-out;
+        }
+        .button-glow:hover {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); /* Blue glow on hover */
+            transform: translateY(-2px);
+        }
+        .input-field {
+            border: 1px solid; /* Border color will be theme-dependent */
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            width: 100%;
+            transition: border-color 0.3s ease-in-out, box-shadow 0.3s ease-in-out, background-color 0.3s ease, color 0.3s ease;
+        }
+        .input-field:focus {
+            border-color: #3b82f6; /* Blue border on focus */
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3); /* Blue shadow on focus */
+            outline: none;
+        }
+
+        /* Light Theme (Default) */
+        body.light-theme {
+            background-color: #f0f2f5; /* Light grey background */
+            color: #1f2937; /* Dark text */
+        }
+        .container.light-theme {
+            background-color: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        canvas.light-theme {
+            background-color: #f8fafc; /* Lighter background for canvas */
+            border-color: #e2e8f0; /* Light border */
+        }
+        .input-field.light-theme {
+            background-color: #ffffff;
+            border-color: #cbd5e1; /* Light grey border */
+            color: #1f2937;
+        }
+        .text-color-light-theme {
+            color: #1f2937; /* Dark text */
+        }
+        .label-text-color-light-theme {
+            color: #374151; /* Slightly lighter dark for labels */
+        }
+
+        /* Dark Theme */
+        body.dark-theme {
+            background-color: #1f2937; /* Dark grey background */
+            color: #e5e7eb; /* Light text */
+        }
+        .container.dark-theme {
+            background-color: #374151; /* Slightly lighter dark for container */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+        }
+        canvas.dark-theme {
+            background-color: #2d3748; /* Darker background for canvas */
+            border-color: #4a5568; /* Darker border */
+        }
+        .input-field.dark-theme {
+            background-color: #4a5568;
+            border-color: #6b7280; /* Lighter grey border */
+            color: #e5e7eb;
+        }
+        .text-color-dark-theme {
+            color: #e5e7eb; /* Light text */
+        }
+        .label-text-color-dark-theme {
+            color: #d1d5db; /* Slightly darker light for labels */
+        }
+
+        /* Disclaimer text color, always red */
+        .disclaimer-text {
+            color: #dc2626; /* Red-600 */
+        }
+        .disclaimer-bg {
+            background-color: #fecaca; /* Red-100 */
+        }
+        .dark-theme .disclaimer-bg {
+            background-color: #7f1d1d; /* Darker red for dark theme */
+            color: #fca5a5;
+        }
+    </style>
+</head>
+<body class="light-theme">
+    <div class="container light-theme">
+        <h1 class="text-3xl font-bold text-center mb-4 text-color-light-theme">Candle Simulator</h1>
+        <p class="text-center font-semibold mb-4 p-2 rounded-md disclaimer-text disclaimer-bg">
+            ⚠️ Disclaimer: This application simulates candle movements for visualization purposes only. It does NOT predict actual financial market prices or provide investment advice.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label for="volatility" class="block text-sm font-bold mb-2 label-text-color-light-theme">Volatility (%):</label>
+                <input type="number" id="volatility" value="1" step="0.1" class="input-field light-theme" />
+            </div>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-4 mb-4">
+            <button id="generateCandleBtn" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg button-glow">
+                Generate Next Simulated Candle
+            </button>
+            <button id="resetBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-6 rounded-lg shadow-lg button-glow">
+                Reset Simulation
+            </button>
+            <button id="themeToggleBtn" class="flex-1 bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg button-glow">
+                Toggle Theme
+            </button>
+        </div>
+
+        <canvas id="candleChart" class="w-full h-80 light-theme"></canvas>
+    </div>
+
+    <script>
+        // Get canvas and context
+        const canvas = document.getElementById('candleChart');
+        const ctx = canvas.getContext('2d');
+
+        // Get UI elements
+        const generateCandleBtn = document.getElementById('generateCandleBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const volatilityInput = document.getElementById('volatility');
+        const themeToggleBtn = document.getElementById('themeToggleBtn'); // New theme toggle button
+
+        // DOM elements to apply theme classes to
+        const body = document.body;
+        const container = document.querySelector('.container');
+        const h1 = document.querySelector('h1');
+        const label = document.querySelector('label[for="volatility"]');
+
+
+        // Simulation parameters
+        const initialPriceDefault = 100; // Fixed default initial price
+        let volatility = parseFloat(volatilityInput.value) / 100; // Convert percentage to decimal
+        let candles = []; // Array to store simulated candle data
+
+        // Canvas dimensions and drawing parameters
+        const candleWidth = 10; // Width of each candle body
+        const wickWidth = 1; // Width of the wick
+        const spacing = 5; // Space between candles
+        const padding = 20; // Padding around the chart area
+
+        // Theme state
+        let isDarkMode = localStorage.getItem('isDarkMode') === 'true'; // Load theme from localStorage
+
+        // Function to apply the current theme
+        function applyTheme() {
+            if (isDarkMode) {
+                body.classList.add('dark-theme');
+                body.classList.remove('light-theme');
+                container.classList.add('dark-theme');
+                container.classList.remove('light-theme');
+                canvas.classList.add('dark-theme');
+                canvas.classList.remove('light-theme');
+                volatilityInput.classList.add('dark-theme');
+                volatilityInput.classList.remove('light-theme');
+                h1.classList.add('text-color-dark-theme');
+                h1.classList.remove('text-color-light-theme');
+                label.classList.add('label-text-color-dark-theme');
+                label.classList.remove('label-text-color-light-theme');
+            } else {
+                body.classList.add('light-theme');
+                body.classList.remove('dark-theme');
+                container.classList.add('light-theme');
+                container.classList.remove('dark-theme');
+                canvas.classList.add('light-theme');
+                canvas.classList.remove('dark-theme');
+                volatilityInput.classList.add('light-theme');
+                volatilityInput.classList.remove('dark-theme');
+                h1.classList.add('text-color-light-theme');
+                h1.classList.remove('text-color-dark-theme');
+                label.classList.add('label-text-color-light-theme');
+                label.classList.remove('label-text-color-dark-theme');
+            }
+            drawChart(); // Redraw chart to apply theme-dependent colors
+        }
+
+        // Function to update simulation parameters from inputs
+        function updateSimulationParameters() {
+            volatility = parseFloat(volatilityInput.value) / 100;
+        }
+
+        // Function to generate a random number within a range
+        function getRandomArbitrary(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        // Function to generate a single simulated candle
+        function generateSimulatedCandle() {
+            let prevClose;
+            if (candles.length === 0) {
+                prevClose = initialPriceDefault; // Use fixed default for the first candle
+            } else {
+                prevClose = candles[candles.length - 1].close;
+            }
+
+            // Simulate price change based on volatility
+            const priceChange = getRandomArbitrary(-volatility, volatility) * prevClose;
+            const newClose = prevClose + priceChange;
+
+            // Ensure open, high, low are around the previous close and new close
+            const open = prevClose;
+            const high = Math.max(open, newClose, prevClose + getRandomArbitrary(0, volatility * prevClose * 0.5));
+            const low = Math.min(open, newClose, prevClose - getRandomArbitrary(0, volatility * prevClose * 0.5));
+
+            // Return the candle data
+            return {
+                open: open,
+                high: high,
+                low: low,
+                close: newClose
+            };
+        }
+
+        // Function to draw a single candle on the canvas
+        function drawCandle(x, open, high, low, close, minY, maxY, chartHeight, priceRange) {
+            const isBullish = close > open; // Green candle (price went up)
+            const bullishColor = '#10B981'; // Tailwind emerald-500 (green)
+            const bearishColor = '#EF4444'; // Tailwind red-500
+            const color = isBullish ? bullishColor : bearishColor;
+
+            // Scale prices to canvas coordinates
+            const scaleY = (price) => chartHeight - ((price - minY) / priceRange) * chartHeight;
+
+            const openY = scaleY(open);
+            const closeY = scaleY(close);
+            const highY = scaleY(high);
+            const lowY = scaleY(low);
+
+            // Draw wick
+            ctx.beginPath();
+            ctx.strokeStyle = isDarkMode ? '#A0AEC0' : '#6B7280'; // Lighter gray for dark theme wick
+            ctx.lineWidth = wickWidth;
+            ctx.moveTo(x + candleWidth / 2, highY);
+            ctx.lineTo(x + candleWidth / 2, lowY);
+            ctx.stroke();
+
+            // Draw body
+            ctx.fillStyle = color;
+            ctx.fillRect(x, Math.min(openY, closeY), candleWidth, Math.abs(openY - closeY));
+        }
+
+        // Function to draw all candles on the canvas
+        function drawChart() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Ensure canvas is responsive
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+
+            // If no candles, nothing to draw
+            if (candles.length === 0) {
+                ctx.fillStyle = isDarkMode ? '#CBD5E1' : '#6B7280'; // Text color for empty chart
+                ctx.font = '16px "Inter", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Click "Generate Next Simulated Candle" to start!', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            // Calculate min/max price for scaling
+            let minPrice = Infinity;
+            let maxPrice = -Infinity;
+            candles.forEach(candle => {
+                minPrice = Math.min(minPrice, candle.low);
+                maxPrice = Math.max(maxPrice, candle.high);
+            });
+
+            // Add some buffer to the min/max for better visualization
+            const priceBuffer = (maxPrice - minPrice) * 0.1;
+            minPrice -= priceBuffer;
+            maxPrice += priceBuffer;
+            const priceRange = maxPrice - minPrice;
+
+            // Define chart area dimensions within canvas
+            const chartX = padding;
+            const chartY = padding;
+            const chartWidth = canvas.width - (2 * padding);
+            const chartHeight = canvas.height - (2 * padding);
+
+            // Calculate available horizontal space per candle
+            const totalCandleAndSpacingWidth = (candleWidth + spacing);
+            const maxCandlesToShow = Math.floor(chartWidth / totalCandleAndSpacingWidth);
+
+            // Determine which candles to draw (only show what fits on screen, newest first)
+            const candlesToDraw = candles.slice(Math.max(0, candles.length - maxCandlesToShow));
+
+            // Draw each candle
+            candlesToDraw.forEach((candle, index) => {
+                const xPos = chartX + (index * totalCandleAndSpacingWidth);
+                drawCandle(xPos, candle.open, candle.high, candle.low, candle.close, minPrice, maxPrice, chartHeight, priceRange);
+            });
+
+            // Draw Y-axis labels (min and max price)
+            ctx.fillStyle = isDarkMode ? '#E2E8F0' : '#6B7280'; // Text color for labels
+            ctx.font = '12px "Inter", sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(maxPrice.toFixed(2), chartX - 5, chartY); // Top Y-axis label
+            ctx.fillText(minPrice.toFixed(2), chartX - 5, chartY + chartHeight); // Bottom Y-axis label
+
+            // Draw a subtle X-axis line at the bottom
+            ctx.strokeStyle = isDarkMode ? '#4A5568' : '#E2E8F0'; // X-axis line color
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(chartX, chartY + chartHeight);
+            ctx.lineTo(chartX + chartWidth, chartY + chartHeight);
+            ctx.stroke();
+        }
+
+        // Event listener for generating a new candle
+        generateCandleBtn.addEventListener('click', () => {
+            updateSimulationParameters(); // Get latest parameters
+            candles.push(generateSimulatedCandle());
+            drawChart();
+        });
+
+        // Event listener for resetting the simulation
+        resetBtn.addEventListener('click', () => {
+            updateSimulationParameters(); // Reset with current input values
+            candles = []; // Clear all candles
+            drawChart(); // Redraw an empty chart
+        });
+
+        // Event listener for theme toggle button
+        themeToggleBtn.addEventListener('click', () => {
+            isDarkMode = !isDarkMode; // Toggle the theme state
+            localStorage.setItem('isDarkMode', isDarkMode); // Save preference
+            applyTheme(); // Apply the new theme
+        });
+
+        // Event listener for volatility input changes
+        volatilityInput.addEventListener('change', updateSimulationParameters);
+
+        // Initial setup
+        window.addEventListener('load', () => {
+            applyTheme(); // Apply the theme when the page loads
+            drawChart(); // Initial chart draw
+        });
+        window.addEventListener('resize', drawChart); // Make chart responsive on resize
+    </script>
+</body>
+</html>
